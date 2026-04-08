@@ -1,0 +1,22 @@
+project_id = "zmhllvbtjyyhwufnurix"
+
+[functions.process-excel]
+verify_jwt = false
+
+[functions.process-vendas]
+verify_jwt = false
+
+[functions.process-contratos]
+verify_jwt = false
+
+[functions.seed-financial-categories]
+verify_jwt = false
+
+[functions.suggest-financial-category]
+verify_jwt = false
+
+[functions.process-movimentacoes]
+verify_jwt = false
+
+[functions.process-clientes-fornecedores]
+verify_jwt = false
