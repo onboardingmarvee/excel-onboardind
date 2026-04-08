@@ -89,7 +89,7 @@ function removeAccents(str: string): string {
 }
 
 function normalize(str: string): string {
-  return removeAccents(str).toLowerCase().trim().replace(/[_-\.]/g, " ");
+  return removeAccents(str).toLowerCase().trim().replace(/[_\-.]/g, " ");
 }
 
 function mapColumns(sourceHeaders: string[], template: TemplateColumn[]): Record<string, string | null> {
