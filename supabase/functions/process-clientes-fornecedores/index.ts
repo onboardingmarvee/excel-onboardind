@@ -269,6 +269,7 @@ interface ClienteRecord {
   complemento: string;
   telefones: string[];
   emails: string[];
+  emitirNF: boolean;
 }
 
 interface ExtractError {
@@ -307,8 +308,9 @@ function extractClientes(rawData: Record<string, unknown>[]): {
   const contactCols = findMultipleColumns(headers, contactSynonyms);
 
   const colDDD = findColumn(headers, ["ddd", "codigo area", "código área"]);
+  const colEmitirNF = findColumn(headers, ["emitir nf", "emitir nf?", "emitir nota fiscal", "emitir nota", "nfse", "nf?"]);
 
-  diagnostics.push(`Mapped: doc=${colDoc}, nome=${colNome}, cep=${colCep}, endereco=${colEndereco}, phones=[${phoneCols.join(",")}], emails=[${emailCols.join(",")}], contacts=[${contactCols.join(",")}], ddd=${colDDD}`);
+  diagnostics.push(`Mapped: doc=${colDoc}, nome=${colNome}, cep=${colCep}, endereco=${colEndereco}, phones=[${phoneCols.join(",")}], emails=[${emailCols.join(",")}], contacts=[${contactCols.join(",")}], ddd=${colDDD}, emitirNF=${colEmitirNF}`);
 
   const byDoc = new Map<string, ClienteRecord>();
   const errors: ExtractError[] = [];
@@ -399,6 +401,13 @@ function extractClientes(rawData: Record<string, unknown>[]): {
       }
     }
 
+    // Emitir NF
+    let emitirNF = false;
+    if (colEmitirNF) {
+      const nfVal = cellToString(row[colEmitirNF]).toLowerCase().trim();
+      emitirNF = ["sim", "s", "yes", "y", "1", "x", "true"].includes(nfVal);
+    }
+
     // CEP, Numero, Complemento — from dedicated columns or parsed from Endereço
     let cep = colCep ? normalizeCEP(row[colCep]) : "";
     let numero = colNumero ? extractDigits(cellToString(row[colNumero])) : "";
@@ -431,6 +440,8 @@ function extractClientes(rawData: Record<string, unknown>[]): {
       if (!existing.cep && cep) existing.cep = cep;
       if (!existing.numero && numero) existing.numero = numero;
       if (!existing.complemento && complemento) existing.complemento = complemento;
+      // If any row says to issue NF, keep true
+      if (emitirNF) existing.emitirNF = true;
     } else {
       if (!doc.digits) {
         errors.push({ documento: `linha_${lineNum}`, tipo: "documento", campo: "CPF/CNPJ", mensagem: `Linha ${lineNum}: Documento (CPF/CNPJ) não identificado. Inserido como "Não definido".` });
@@ -442,6 +453,7 @@ function extractClientes(rawData: Record<string, unknown>[]): {
         nome, cep, numero, complemento,
         telefones: phones,
         emails,
+        emitirNF,
       });
     }
   }
@@ -526,8 +538,8 @@ function fillTemplate(
       if (j < c.emails.length) {
         setCellValue(contatosSheet, 5, contatoRow, c.emails[j]);   // F: E-mail
       }
-      setCellValue(contatosSheet, 6, contatoRow, "Sim");           // G: Enviar Boleto
-      setCellValue(contatosSheet, 7, contatoRow, "Sim");           // H: Enviar NFSe
+      setCellValue(contatosSheet, 6, contatoRow, "Sim");                          // G: Enviar Boleto
+      setCellValue(contatosSheet, 7, contatoRow, c.emitirNF ? "Sim" : "Não");   // H: Enviar NFSe
       contatoRow++;
       contatosCount++;
     }

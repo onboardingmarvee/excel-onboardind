@@ -457,6 +457,13 @@ serve(async (req) => {
       const row = rawData[i];
       const rowNum = i + 2;
 
+      // Skip ghost/empty rows (formatting residue from deleted rows)
+      const isGhostRow = headers.every(h => {
+        const v = row[h];
+        return v == null || String(v).trim() === "";
+      });
+      if (isGhostRow) continue;
+
       // Check if this row is a contract
       let isContractRow = true;
       if (descCols.length > 0) {
@@ -608,9 +615,9 @@ serve(async (req) => {
         // Use last day of that month
         dataFinalDate = lastDayOfMonth(dataFinalDate.getFullYear(), dataFinalDate.getMonth());
       } else {
-        // Default: last day of current year; if past July, last day of next year
-        warnings.push("final_default: Data final não encontrada, usando default");
-        const year = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
+        // Default: 31/12 of the second subsequent year (e.g. if now is Apr/2026 → 31/12/2028)
+        warnings.push("final_default: Data final não encontrada, usando 31/12 do 2º ano posterior");
+        const year = now.getFullYear() + 2;
         dataFinalDate = new Date(year, 11, 31);
       }
       const dataFinal = formatDateDDMMYYYY(dataFinalDate);
