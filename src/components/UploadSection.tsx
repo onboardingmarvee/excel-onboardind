@@ -29,7 +29,10 @@ export default function UploadSection({ uploads, onUploadComplete, onSelectUploa
 
     setUploading(true);
     try {
-      const path = `${crypto.randomUUID()}/${file.name}`;
+      const safeName = file.name
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // remove acentos
+        .replace(/[^a-zA-Z0-9._-]/g, '_');                  // substitui espaços/parênteses/etc por _
+      const path = `${crypto.randomUUID()}/${safeName}`;
       const { error: storageError } = await supabase.storage.from('uploads').upload(path, file);
       if (storageError) throw storageError;
 
