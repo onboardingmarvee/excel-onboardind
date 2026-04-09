@@ -658,8 +658,11 @@ serve(async (req) => {
         descricaoFinal = "PROVISÃO - " + descBase;
       }
 
-      // Category suggestion
-      const textoParaCategoria = cleanDescriptionForCategory(descBase, descricaoFinal);
+      // Category suggestion — combine fornecedor name + descrição for richer signal
+      const textoParaCategoria = cleanDescriptionForCategory(
+        `${d.nome} ${descBase}`.trim(),
+        descricaoFinal
+      );
 
       let categoriaCode = "02.01.01"; // default expense category
       try {

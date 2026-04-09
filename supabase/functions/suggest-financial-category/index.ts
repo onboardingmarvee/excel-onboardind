@@ -26,6 +26,33 @@ function cleanCategoryQueryText(desc: string): string {
 
 // --- ETAPA A: Overrides determinísticos ---
 
+// Fornecedores conhecidos: mapeamento direto por nome de empresa/sistema
+const VENDOR_OVERRIDES: Array<{ terms: string[]; code: string; name: string }> = [
+  // Ferramentas Adm/Financeiro
+  { terms: ["google workspace","google suite","gsuite","gmail workspace"], code: "02.06.11", name: "Ferramentas, Softwares e Sistemas - Administrativo/Financeiro" },
+  { terms: ["umbler","email corp","email corporativo","e-mail corp","e-mail corporativo","zoho mail","microsoft 365","m365","office 365","outlook"], code: "02.06.11", name: "Ferramentas, Softwares e Sistemas - Administrativo/Financeiro" },
+  { terms: ["conta azul","omie","bling erp","totvs","sankhya","senior sistemas","netsuite","sap"], code: "02.06.11", name: "Ferramentas, Softwares e Sistemas - Administrativo/Financeiro" },
+  // Ferramentas Marketing/Comercial
+  { terms: ["rdstation","rd station","hubspot","pipedrive","salesforce","agendor","crm marketing","bitrix24"], code: "02.05.02", name: "Ferramentas, Softwares e Sistemas - Comercial e Marketing" },
+  { terms: ["meta ads","facebook ads","instagram ads","meta business","meta verified","verifiqued wpp","wpp business","whatsapp business api","360dialog"], code: "02.05.08", name: "Tráfego Pago" },
+  { terms: ["google ads","google adwords","trafego pago","trafego google"], code: "02.05.08", name: "Tráfego Pago" },
+  { terms: ["win marketing","agencia marketing","marketing digital","marketing mensal","plano marketing"], code: "02.05.07", name: "Assessoria de Marketing e Imprensa" },
+  // Ferramentas Prestação de Serviço / Telemarketing
+  { terms: ["plataf telem","plataforma telemark","telemark","telemarketing","discador","ura","voip asterisk","plataforma ligacao","plataforma ligação","solution telemark"], code: "02.02.06", name: "Ferramentas, Softwares e Sistemas - Prestação de Serviço" },
+  // SDR / Prospecção
+  { terms: ["sdr","sales development","prospecção ativa","prospeccao ativa","hunter vendas","bdr comercial"], code: "02.05.01", name: "Comissões sobre Vendas" },
+  // Contabilidade / BPO
+  { terms: ["contab","bpo financ","bpo financeiro","bpo contabil","bpo contábil","escritorio contabil","escritório contábil","contabilidade mensal"], code: "02.06.03", name: "Honorários Contabilidade" },
+  // Jurídico
+  { terms: ["juridico","jurídico","advogado","advocacia","assessoria juridica","assessoria jurídica","svb juridico","juridico mensal"], code: "02.06.04", name: "Honorários Advogado" },
+  // Internet/Telefonia
+  { terms: ["vivo","claro","tim","oi telecom","net combo","starlink","fibra","internet mensal","plano internet","telefonia mensal"], code: "02.06.10", name: "Internet/Telefone" },
+  // Energia
+  { terms: ["enel","cemig","copel","celpe","coelba","celesc","elektro","equatorial","neoenergia","conta luz","conta energia"], code: "02.06.09", name: "Energia Elétrica" },
+  // Água/Saneamento
+  { terms: ["sabesp","caesb","saneamento","embasa","cagece","copasa","cedae","aguas","companhia agua","companhia água"], code: "02.06.08", name: "Água" },
+];
+
 const MARKETING_SIGNALS = ["marketing","ads","google","meta","facebook","instagram","vendas","comissao","comissão","crm","leads","comercial","publicidade","propaganda","midia","mídia"];
 const ADM_SIGNALS = ["administrativo","adm","financeiro","contabil","contábil","rh","recursos humanos","juridico","jurídico","escritorio","escritório"];
 const SERVICO_SIGNALS = ["obra","construcao","construção","projeto","prestacao","prestação","cliente","instalacao","instalação","manutencao","manutenção"];
@@ -452,6 +479,19 @@ serve(async (req) => {
     const raw = description;
     const cleaned = cleanCategoryQueryText(raw);
     const tokens = toTokens(cleaned);
+    const normRaw = norm(raw);
+
+    // ETAPA 0: Vendor lookup (nome do fornecedor + descrição combinados)
+    for (const v of VENDOR_OVERRIDES) {
+      if (v.terms.some(t => normRaw.includes(norm(t)))) {
+        return new Response(JSON.stringify({
+          code: v.code, name: v.name, score: 1,
+          top: [{ code: v.code, name: v.name, score: 1 }],
+          strategy: "vendor_override", reason: "vendor_match",
+          cleaned_description: cleaned,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
 
     // ETAPA A: Override
     const override = ruleBasedCategoryOverride(raw, cleaned, tokens);
