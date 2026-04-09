@@ -20,8 +20,19 @@ serve(async (req) => {
   try {
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const { data: fileData, error: dlError } = await sb.storage.from("templates").download("categorias_financeiras_2026-03-20.xlsx");
-    if (dlError) throw new Error(`Download: ${dlError.message}`);
+    // Try multiple filename conventions for the categories file
+    const candidateNames = [
+      "categorias_financeiras_2026-03-20.xlsx",
+      "Categorias - 20-03-2026.xlsx",
+      "categorias.xlsx",
+      "Categorias.xlsx",
+    ];
+    let fileData: Blob | null = null;
+    for (const name of candidateNames) {
+      const { data, error } = await sb.storage.from("templates").download(name);
+      if (!error && data) { fileData = data; break; }
+    }
+    if (!fileData) throw new Error(`Arquivo de categorias não encontrado no bucket 'templates'. Tentativas: ${candidateNames.join(", ")}`);
 
     const wb = XLSX.read(new Uint8Array(await fileData.arrayBuffer()), { type: "array" });
     const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
