@@ -43,7 +43,8 @@ export default function UploadSection({ uploads, onUploadComplete, onSelectUploa
       onUploadComplete();
     } catch (err) {
       console.error('Upload error:', err);
-      alert('Erro ao fazer upload. Tente novamente.');
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? JSON.stringify(err);
+      alert(`Erro ao fazer upload:\n${msg}`);
     } finally {
       setUploading(false);
     }
