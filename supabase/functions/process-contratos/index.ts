@@ -148,6 +148,38 @@ function updateSheetRange(sheet: XLSX.WorkSheet, maxRow: number, maxCol: number)
   sheet["!ref"] = XLSX.utils.encode_range(range);
 }
 
+function captureRowStyles(
+  sheet: XLSX.WorkSheet,
+  protoRow: number,
+  maxCol: number
+): Map<number, Record<string, unknown>> {
+  const styles = new Map<number, Record<string, unknown>>();
+  for (let c = 0; c < maxCol; c++) {
+    const ref = XLSX.utils.encode_cell({ c, r: protoRow });
+    const cell = sheet[ref];
+    if (!cell) continue;
+    const snap: Record<string, unknown> = {};
+    if (cell.s !== undefined) snap.s = JSON.parse(JSON.stringify(cell.s));
+    if (cell.z !== undefined) snap.z = cell.z;
+    styles.set(c, snap);
+  }
+  return styles;
+}
+
+function copyRowStyle(
+  sheet: XLSX.WorkSheet,
+  toRow: number,
+  styles: Map<number, Record<string, unknown>>
+): void {
+  if (styles.size === 0) return;
+  for (const [c, snap] of styles) {
+    const ref = XLSX.utils.encode_cell({ c, r: toRow });
+    if (!sheet[ref]) sheet[ref] = { t: "z" };
+    if (snap.s !== undefined) sheet[ref].s = JSON.parse(JSON.stringify(snap.s));
+    if (snap.z !== undefined) sheet[ref].z = snap.z;
+  }
+}
+
 // Parse vigência range "MM/YYYY - MM/YYYY" or single "MM/YYYY"
 function parseVigenciaRange(val: unknown): { inicio: string; fim: string } {
   const empty = { inicio: "", fim: "" };
@@ -760,10 +792,13 @@ serve(async (req) => {
       PRIMEIRA_VENDA: 35,    // AJ (index 35)
     };
 
+    const contratosProtoStyles = captureRowStyles(contratosSheet, DATA_START_ROW, 36);
+
     for (let i = 0; i < consolidated.length; i++) {
       const c = consolidated[i];
       const row = DATA_START_ROW + i;
 
+      copyRowStyle(contratosSheet, row, contratosProtoStyles);
       setCellValue(contratosSheet, COL.TIPO_TOMADOR, row, c.tipoPessoa);
       if (c.documento) setCellValue(contratosSheet, COL.CPF_CNPJ, row, c.documento);
       setCellValue(contratosSheet, COL.RAZAO_SOCIAL, row, c.nome);
@@ -813,9 +848,12 @@ serve(async (req) => {
       };
       let svcRow = 1; // Data starts at row 2 (0-indexed row 1)
 
+      const svcProtoStyles = captureRowStyles(servicosSheet, 1, 9);
+
       for (const c of consolidated) {
         if (!c.multiServicos) continue;
         for (const svc of c.parsedServices) {
+          copyRowStyle(servicosSheet, svcRow, svcProtoStyles);
           setCellValue(servicosSheet, SVC_COL.CODIGO_REF, svcRow, c.codigoReferencia);
           setCellValue(servicosSheet, SVC_COL.NOME_SERVICO, svcRow, "Prestação de Serviço");
           setCellValue(servicosSheet, SVC_COL.DESCRICAO, svcRow, svc.description);

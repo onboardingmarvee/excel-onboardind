@@ -465,7 +465,12 @@ function extractClientes(rawData: Record<string, unknown>[]): {
 
 function setCellValue(sheet: XLSX.WorkSheet, col: number, row: number, value: string): void {
   const cellRef = XLSX.utils.encode_cell({ c: col, r: row });
-  sheet[cellRef] = { t: "s", v: value };
+  if (!sheet[cellRef]) {
+    sheet[cellRef] = { t: "s", v: value };
+  } else {
+    sheet[cellRef].v = value;
+    sheet[cellRef].t = "s";
+  }
 }
 
 function updateSheetRange(sheet: XLSX.WorkSheet, maxRow: number, maxCol: number): void {
@@ -473,6 +478,38 @@ function updateSheetRange(sheet: XLSX.WorkSheet, maxRow: number, maxCol: number)
   if (maxRow > range.e.r) range.e.r = maxRow - 1;
   if (maxCol - 1 > range.e.c) range.e.c = maxCol - 1;
   sheet["!ref"] = XLSX.utils.encode_range(range);
+}
+
+function captureRowStyles(
+  sheet: XLSX.WorkSheet,
+  protoRow: number,
+  maxCol: number
+): Map<number, Record<string, unknown>> {
+  const styles = new Map<number, Record<string, unknown>>();
+  for (let c = 0; c < maxCol; c++) {
+    const ref = XLSX.utils.encode_cell({ c, r: protoRow });
+    const cell = sheet[ref];
+    if (!cell) continue;
+    const snap: Record<string, unknown> = {};
+    if (cell.s !== undefined) snap.s = JSON.parse(JSON.stringify(cell.s));
+    if (cell.z !== undefined) snap.z = cell.z;
+    styles.set(c, snap);
+  }
+  return styles;
+}
+
+function copyRowStyle(
+  sheet: XLSX.WorkSheet,
+  toRow: number,
+  styles: Map<number, Record<string, unknown>>
+): void {
+  if (styles.size === 0) return;
+  for (const [c, snap] of styles) {
+    const ref = XLSX.utils.encode_cell({ c, r: toRow });
+    if (!sheet[ref]) sheet[ref] = { t: "z" };
+    if (snap.s !== undefined) sheet[ref].s = JSON.parse(JSON.stringify(snap.s));
+    if (snap.z !== undefined) sheet[ref].z = snap.z;
+  }
 }
 
 function fillTemplate(
@@ -487,9 +524,12 @@ function fillTemplate(
   const DATA_START_ROW = 3;
   let dadosCount = 0;
 
+  const dadosProtoStyles = captureRowStyles(dadosSheet, DATA_START_ROW, 24);
+
   for (let i = 0; i < clientes.length; i++) {
     const c = clientes[i];
     const row = DATA_START_ROW + i;
+    copyRowStyle(dadosSheet, row, dadosProtoStyles);
 
     setCellValue(dadosSheet, 0, row, c.tipoPessoa);                          // A: Tipo de Pessoa
     setCellValue(dadosSheet, 1, row, c.documento);                            // B: CPF/CNPJ (always string)
@@ -523,11 +563,14 @@ function fillTemplate(
   let contatoRow = CONTATOS_START_ROW;
   let contatosCount = 0;
 
+  const contatosProtoStyles = captureRowStyles(contatosSheet, CONTATOS_START_ROW, 8);
+
   for (const c of clientes) {
     if (c.telefones.length === 0 && c.emails.length === 0) continue;
 
     const maxLines = Math.max(c.telefones.length, c.emails.length, 1);
     for (let j = 0; j < maxLines; j++) {
+      copyRowStyle(contatosSheet, contatoRow, contatosProtoStyles);
       setCellValue(contatosSheet, 0, contatoRow, c.documento);     // A: CPF/CNPJ
       setCellValue(contatosSheet, 1, contatoRow, "Financeiro");    // B: Contato
       setCellValue(contatosSheet, 2, contatoRow, "Financeiro");    // C: Cargo

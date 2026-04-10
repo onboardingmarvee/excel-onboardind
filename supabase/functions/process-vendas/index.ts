@@ -152,6 +152,38 @@ function updateSheetRange(sheet: XLSX.WorkSheet, maxRow: number, maxCol: number)
   sheet["!ref"] = XLSX.utils.encode_range(range);
 }
 
+function captureRowStyles(
+  sheet: XLSX.WorkSheet,
+  protoRow: number,
+  maxCol: number
+): Map<number, Record<string, unknown>> {
+  const styles = new Map<number, Record<string, unknown>>();
+  for (let c = 0; c < maxCol; c++) {
+    const ref = XLSX.utils.encode_cell({ c, r: protoRow });
+    const cell = sheet[ref];
+    if (!cell) continue;
+    const snap: Record<string, unknown> = {};
+    if (cell.s !== undefined) snap.s = JSON.parse(JSON.stringify(cell.s));
+    if (cell.z !== undefined) snap.z = cell.z;
+    styles.set(c, snap);
+  }
+  return styles;
+}
+
+function copyRowStyle(
+  sheet: XLSX.WorkSheet,
+  toRow: number,
+  styles: Map<number, Record<string, unknown>>
+): void {
+  if (styles.size === 0) return;
+  for (const [c, snap] of styles) {
+    const ref = XLSX.utils.encode_cell({ c, r: toRow });
+    if (!sheet[ref]) sheet[ref] = { t: "z" };
+    if (snap.s !== undefined) sheet[ref].s = JSON.parse(JSON.stringify(snap.s));
+    if (snap.z !== undefined) sheet[ref].z = snap.z;
+  }
+}
+
 // ============ CLASSIFICATION: VENDA vs CONTRATO ============
 
 const CONTRACT_TERMS = [
@@ -640,6 +672,8 @@ serve(async (req) => {
 
     const DATA_START_ROW = 3; // 0-indexed
 
+    const dadosProtoStyles = captureRowStyles(dadosSheet, DATA_START_ROW, 30);
+
     const COL = {
       TIPO_TOMADOR: 0,
       CPF_CNPJ: 1,
@@ -672,6 +706,7 @@ serve(async (req) => {
     for (let i = 0; i < consolidated.length; i++) {
       const v = consolidated[i];
       const row = DATA_START_ROW + i;
+      copyRowStyle(dadosSheet, row, dadosProtoStyles);
 
       setCellValue(dadosSheet, COL.TIPO_TOMADOR, row, v.tipoPessoa);
       if (v.documento) setCellValue(dadosSheet, COL.CPF_CNPJ, row, v.documento);
@@ -721,9 +756,12 @@ serve(async (req) => {
         };
         let svcRow = 1;
 
+        const svcProtoStyles = captureRowStyles(servicosSheet, svcRow, 5);
+
         for (const v of consolidated) {
           if (!v.multiServicos) continue;
           for (const svc of v.parsedServices) {
+            copyRowStyle(servicosSheet, svcRow, svcProtoStyles);
             setCellValue(servicosSheet, SVC_COL.CODIGO_REF, svcRow, v.codigoReferencia);
             setCellValue(servicosSheet, SVC_COL.NOME_SERVICO, svcRow, "Prestação de Serviço");
             setCellValue(servicosSheet, SVC_COL.DESCRICAO, svcRow, svc.description);
