@@ -437,7 +437,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey);
 
   try {
-    const { upload_id } = await req.json();
+    const { upload_id, conta_padrao, centro_custo_padrao } = await req.json();
     if (!upload_id) throw new Error("upload_id is required");
 
     console.log(`[process-movimentacoes] Starting for upload: ${upload_id}`);
@@ -447,6 +447,7 @@ serve(async (req) => {
       upload_id,
       import_type: "movimentacoes",
       status: "processing",
+      config_json: { conta_padrao: conta_padrao || null, centro_custo_padrao: centro_custo_padrao || null },
     }).select().single();
     if (runError || !run) throw new Error(`Failed to create run: ${runError?.message}`);
     const runId = run.id;
@@ -797,8 +798,8 @@ serve(async (req) => {
         errors.push({ row: d.rowIdx, field: "Vencimento", message: `Vencimento não encontrado, usando provisão: ${vencimentoFinal}`, type: "venc_fallback" });
       }
 
-      // Conta — apply tax default if missing
-      const conta = d.conta || (taxDefault?.conta) || "Caixinha";
+      // Conta — apply tax default if missing, then user-supplied default, then hardcoded fallback
+      const conta = d.conta || (taxDefault?.conta) || conta_padrao || "Caixinha";
 
       // Código referência
       const codigoReferencia = `${runId.slice(0, 8)}-${String(faturaCounter).padStart(4, "0")}`;
@@ -815,7 +816,7 @@ serve(async (req) => {
         nFatura: faturaCounter,
         dataCompetencia,
         categoria: categoriaCode,
-        centroCusto: d.centroCusto,
+        centroCusto: d.centroCusto || centro_custo_padrao || "",
         conta,
         tipoCobranca,
         tipoChavePix,

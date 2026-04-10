@@ -361,7 +361,7 @@ serve(async (req) => {
   );
 
   try {
-    const { upload_id } = await req.json();
+    const { upload_id, conta_padrao, centro_custo_padrao } = await req.json();
     if (!upload_id) throw new Error("upload_id is required");
 
     console.log(`[process-vendas] Starting for upload: ${upload_id}`);
@@ -371,6 +371,7 @@ serve(async (req) => {
       upload_id,
       import_type: "vendas",
       status: "processing",
+      config_json: { conta_padrao: conta_padrao || null, centro_custo_padrao: centro_custo_padrao || null },
     }).select().single();
     if (runError || !run) throw new Error(`Failed to create run: ${runError?.message}`);
     const runId = run.id;
@@ -638,8 +639,8 @@ serve(async (req) => {
         tipoPessoa: first.tipoPessoa,
         nome: first.nome,
         competencia: first.competencia,
-        centroCusto: first.centroCusto,
-        conta: first.conta || "Caixinha",
+        centroCusto: first.centroCusto || centro_custo_padrao || "",
+        conta: first.conta || conta_padrao || "Caixinha",
         tipoCobranca,
         observacoes: first.observacoes,
         descricaoServico: first.descricaoServico,
