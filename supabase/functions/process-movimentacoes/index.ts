@@ -798,8 +798,8 @@ serve(async (req) => {
         errors.push({ row: d.rowIdx, field: "Vencimento", message: `Vencimento não encontrado, usando provisão: ${vencimentoFinal}`, type: "venc_fallback" });
       }
 
-      // Conta — apply tax default if missing, then user-supplied default, then hardcoded fallback
-      const conta = d.conta || (taxDefault?.conta) || conta_padrao || "Caixinha";
+      // Conta — user config overrides file value; tax default and hardcoded as last fallbacks
+      const conta = conta_padrao || d.conta || (taxDefault?.conta) || "Caixinha";
 
       // Código referência
       const codigoReferencia = `${runId.slice(0, 8)}-${String(faturaCounter).padStart(4, "0")}`;
@@ -816,7 +816,7 @@ serve(async (req) => {
         nFatura: faturaCounter,
         dataCompetencia,
         categoria: categoriaCode,
-        centroCusto: d.centroCusto || centro_custo_padrao || "",
+        centroCusto: centro_custo_padrao || d.centroCusto || "",
         conta,
         tipoCobranca,
         tipoChavePix,
