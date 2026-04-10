@@ -497,9 +497,10 @@ serve(async (req) => {
     ]);
     const colVencimento = findColumn(headers, ["venc", "vencimento", "due date", "dt vencimento", "data vencimento", "dia do vencimento", "dia vencimento", "dia venc"]);
     const colValor = findColumn(headers, ["valor bruto", "valor", "total", "amount", "vlr", "valor total"], ["liquido", "líquido", "net", "desconto"]);
-    const colConta = findColumn(headers, ["conta", "carteira", "banco", "caixa"]);
+    const colConta = findColumn(headers, ["conta", "carteira", "banco", "caixa"], ["pix", "chave", "tipo"]);
     const colObs = findColumn(headers, ["obs", "observacao", "observação", "comentario", "comentário"]);
-    const colChavePix = findColumn(headers, ["pix", "chave", "qr", "copia e cola", "copiaecola", "chave pix"]);
+    const colTipoChavePix = findColumn(headers, ["tipo chave pix", "tipo de chave pix", "tipo chave", "tipo pix"]);
+    const colChavePix = findColumn(headers, ["chave pix", "chave", "pix", "qr", "copia e cola", "copiaecola"], ["tipo"]);
     const colCentroCusto = findColumn(headers, ["centro", "custo", "cc", "centro de custo", "centro custo"]);
     const colCep = findColumn(headers, ["cep", "zip", "codigo postal"]);
     const colNumero = findColumn(headers, ["numero endereco", "número endereço", "num", "nro"]);
@@ -529,6 +530,7 @@ serve(async (req) => {
       conta: string;
       observacoes: string;
       chavePix: string;
+      tipoChavePix: string;
       centroCusto: string;
       cep: string;
       numero: string;
@@ -608,6 +610,7 @@ serve(async (req) => {
       const conta = colConta ? String(row[colConta] ?? "").trim() : "";
       const observacoes = colObs ? String(row[colObs] ?? "").trim() : "";
       const chavePix = colChavePix ? String(row[colChavePix] ?? "").trim() : "";
+      const tipoChavePix = colTipoChavePix ? String(row[colTipoChavePix] ?? "").trim() : "";
       const centroCusto = colCentroCusto ? String(row[colCentroCusto] ?? "").trim() : "";
       const cep = colCep ? String(row[colCep] ?? "").trim() : "";
       const numero = colNumero ? String(row[colNumero] ?? "").trim() : "";
@@ -616,7 +619,7 @@ serve(async (req) => {
       rawDespesas.push({
         rowIdx: rowNum, documento, tipoPessoa: detectTipoPessoa(documento),
         nome, descricaoBase, tipoCobrancaRaw, vencimento, valor,
-        conta, observacoes, chavePix, centroCusto, cep, numero, email,
+        conta, observacoes, chavePix, tipoChavePix, centroCusto, cep, numero, email,
       });
     }
 
@@ -726,11 +729,18 @@ serve(async (req) => {
       // PIX key
       let tipoChavePix = "";
       let chavePix = "";
-      if (tipoCobranca === "Pix" && d.chavePix) {
-        tipoChavePix = detectPixKeyType(d.chavePix);
-        chavePix = d.chavePix;
-      } else if (tipoCobranca === "Pix" && !d.chavePix) {
-        errors.push({ row: d.rowIdx, field: "Chave Pix", message: `Tipo Pix mas chave não identificada`, type: "pix_sem_chave" });
+      if (tipoCobranca === "Pix") {
+        if (d.chavePix) {
+          // Use explicit tipo from input if available; otherwise detect from key value
+          tipoChavePix = d.tipoChavePix || detectPixKeyType(d.chavePix);
+          chavePix = d.chavePix;
+        } else if (d.tipoChavePix) {
+          // Has tipo but no chave value — record the type, report missing key
+          tipoChavePix = d.tipoChavePix;
+          errors.push({ row: d.rowIdx, field: "Chave Pix", message: `Tipo Pix mas chave não identificada`, type: "pix_sem_chave" });
+        } else {
+          errors.push({ row: d.rowIdx, field: "Chave Pix", message: `Tipo Pix mas chave não identificada`, type: "pix_sem_chave" });
+        }
       }
 
       // Tax defaults detection
