@@ -660,7 +660,7 @@ serve(async (req) => {
 
     // 6) Read template workbook and fill
     const templateBuffer = await templateFile.arrayBuffer();
-    const templateWb = XLSX.read(new Uint8Array(templateBuffer), { type: "array" });
+    const templateWb = XLSX.read(new Uint8Array(templateBuffer), { type: "array", cellStyles: true });
 
     const { dadosCount, contatosCount } = fillTemplate(templateWb, clientes);
     console.log(`[process] Filled: ${dadosCount} rows in Dados, ${contatosCount} rows in Contatos`);
@@ -680,7 +680,7 @@ serve(async (req) => {
     }
 
     // 8) Write output
-    const outputBuffer = XLSX.write(templateWb, { type: "array", bookType: "xlsx" });
+    const outputBuffer = XLSX.write(templateWb, { type: "array", bookType: "xlsx", cellStyles: true });
     const outputPath = `clientes_fornecedores/${runId}.xlsx`;
 
     const { error: uploadOutputErr } = await supabase.storage

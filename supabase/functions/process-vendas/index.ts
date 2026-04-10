@@ -665,7 +665,7 @@ serve(async (req) => {
 
     // 9) Read template and fill
     const templateBuffer = await templateFile.arrayBuffer();
-    const templateWb = XLSX.read(new Uint8Array(templateBuffer), { type: "array" });
+    const templateWb = XLSX.read(new Uint8Array(templateBuffer), { type: "array", cellStyles: true });
 
     const dadosSheet = templateWb.Sheets[templateWb.SheetNames[0]];
     if (!dadosSheet) throw new Error("Aba 'Dados' não encontrada no template");
@@ -797,7 +797,7 @@ serve(async (req) => {
     }
 
     // 11) Write output XLSX
-    const outputBuffer = XLSX.write(templateWb, { type: "array", bookType: "xlsx" });
+    const outputBuffer = XLSX.write(templateWb, { type: "array", bookType: "xlsx", cellStyles: true });
     const outputPath = `vendas/${runId}.xlsx`;
 
     const { error: uploadOutputErr } = await supabase.storage

@@ -747,7 +747,7 @@ serve(async (req) => {
 
     // 8) Read template and fill
     const templateBuffer = await templateFile.arrayBuffer();
-    const templateWb = XLSX.read(new Uint8Array(templateBuffer), { type: "array" });
+    const templateWb = XLSX.read(new Uint8Array(templateBuffer), { type: "array", cellStyles: true });
 
     // --- Fill Contratos sheet (index 1: "Contratos") ---
     const contratosSheet = templateWb.Sheets["Contratos"];
@@ -891,7 +891,7 @@ serve(async (req) => {
     }
 
     // 10) Write output XLSX
-    const outputBuffer = XLSX.write(templateWb, { type: "array", bookType: "xlsx" });
+    const outputBuffer = XLSX.write(templateWb, { type: "array", bookType: "xlsx", cellStyles: true });
     const outputPath = `contratos/${runId}.xlsx`;
 
     const { error: uploadOutputErr } = await supabase.storage
